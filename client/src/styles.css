@@ -109,6 +109,26 @@ body {
   filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 7px currentColor);
 }
 .theme-toggle button[aria-label="Светлая тема"][aria-pressed="true"] .icon-svg { color: var(--sun); }
+.auth-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1.5px solid var(--blue);
+}
+.auth-toggle button {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: var(--icon);
+  transition: color 420ms ease, filter 420ms ease, opacity 420ms ease;
+}
+.auth-toggle button[aria-pressed="false"] { opacity: 0.38; }
+.auth-toggle button[aria-pressed="true"] {
+  color: var(--blue);
+  filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 7px currentColor);
+}
+.login-google { display: none; }
 .account {
   width: 36px;
   height: 36px;
@@ -156,6 +176,8 @@ body {
 }
 .toolbar button:not(:disabled):hover, .icon-button:hover, .menu button:hover, .account-menu button:hover { background: var(--hover); }
 .toolbar button:disabled { color: var(--disabled); }
+.toolbar button[data-action="add-subtask"]:not(:disabled) { color: var(--blue); }
+.toolbar button[data-action="add-subtask"]:not(:disabled) .icon-svg { filter: drop-shadow(0 0 3px var(--blue)) drop-shadow(0 0 7px var(--blue)); }
 .tree-scroll, .items { flex: 1; min-height: 0; overflow: auto; }
 .row, .item {
   display: flex;
@@ -304,6 +326,9 @@ html[data-theme="light"] .item.is-failed .name, html[data-theme="light"] .item.i
 .login-logo { width: 72px; height: 72px; color: var(--blue); }
 .gem-faint { width: 84px; height: 84px; color: var(--blue); opacity: 0.28; }
 .login-warning { margin: 0; max-width: 360px; text-align: center; color: var(--muted); }
+.login-form { display: grid; gap: 10px; width: min(260px, 100%); }
+.login-form label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.login-form input { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .login-card .btn { min-width: 260px; }
 mark { background: rgba(50, 117, 194, 0.35); color: inherit; border-radius: 3px; box-shadow: 0 0 8px rgba(50, 117, 194, 0.35); }
 @media (prefers-reduced-motion: reduce) {

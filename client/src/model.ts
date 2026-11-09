@@ -27,8 +27,25 @@ export function taskVisual(item: ListItem, items: ListItem[]): Status | 'mixed' 
   if (!kids.length) return item.status;
   const visuals = kids.map((child) => taskVisual(child, items));
   const first = visuals[0];
-  if (visuals.every((visual) => visual === first) && first !== 'mixed' && first === item.status) return item.status;
+  if (visuals.every((visual) => visual === first) && first !== 'mixed') return first;
   return 'mixed';
+}
+
+export function alignParentStatus(items: ListItem[]) {
+  const byParent = new Map<string, Status[]>();
+  for (const item of items) {
+    if (item.kind !== 'task' || !item.parentId) continue;
+    const list = byParent.get(item.parentId) ?? [];
+    list.push(item.status);
+    byParent.set(item.parentId, list);
+  }
+  return items.map((item) => {
+    const kids = byParent.get(item.id);
+    if (!kids?.length || item.kind !== 'task') return item;
+    const first = kids[0];
+    if (!kids.every((status) => status === first) || item.status === first) return item;
+    return { ...item, status: first };
+  });
 }
 
 export function childrenOf(nodes: TreeNode[], parentId: string | null) {

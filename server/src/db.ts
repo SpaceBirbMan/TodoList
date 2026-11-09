@@ -75,5 +75,9 @@ export async function migrate() {
 
     CREATE INDEX IF NOT EXISTS nodes_user_parent ON nodes (user_id, parent_id, pos);
     CREATE INDEX IF NOT EXISTS items_list ON items (list_id, pos);
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS login text;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash text;
+    CREATE UNIQUE INDEX IF NOT EXISTS users_login ON users (login);
   `);
 }

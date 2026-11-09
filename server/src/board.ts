@@ -32,6 +32,21 @@ type ItemRow = {
 
 type Group = { parentId: string | null; orderedIds: string[] };
 
+async function rollParent(client: PoolClient, parentId: string | null, owner: string) {
+  if (!parentId) return;
+  const kids = await client.query<{ status: Status }>(
+    `SELECT status FROM items WHERE parent_id = $1 AND user_id = $2 AND kind = 'task'`,
+    [parentId, owner],
+  );
+  if (!kids.rows.length) return;
+  const status = kids.rows[0].status;
+  if (!kids.rows.every((row) => row.status === status)) return;
+  await client.query(
+    `UPDATE items SET status = $1, updated_at = now() WHERE id = $2 AND user_id = $3 AND kind = 'task' AND status IS DISTINCT FROM $1`,
+    [status, parentId, owner],
+  );
+}
+
 function userId(req: Request) {
   const id = req.session?.userId;
   if (!id) throw new HttpError(401, 'Нужен вход');
@@ -367,6 +382,7 @@ board.post('/items', wrap(async (req, res) => {
   const body = bodyOf(req);
   const listId = parseTitleSafeId(typeof body.listId === 'string' ? body.listId : '');
   const parentId = parseOptionalId(body.parentId);
+  const afterId = parseOptionalId(body.afterId);
   const kind = itemKind(body.kind);
   const text = parseTitle(body.body, 500, 'Текст не может быть пустым', 'Текст длиннее 500 символов');
   const createdId = await tx(async (client) => {
@@ -383,14 +399,30 @@ board.post('/items', wrap(async (req, res) => {
         throw new HttpError(400, 'Подзадача остаётся на одном уровне');
       }
     }
-    const max = await client.query<{ pos: number }>(
-      `SELECT COALESCE(MAX(pos), -1) + 1 AS pos FROM items WHERE list_id = $1 AND parent_id IS NOT DISTINCT FROM $2`,
-      [listId, parentId],
-    );
+    let pos = 0;
+    if (afterId) {
+      const after = await client.query<{ parent_id: string | null; pos: number; list_id: string }>(
+        'SELECT parent_id, pos, list_id FROM items WHERE id = $1 AND user_id = $2',
+        [afterId, owner],
+      );
+      const row = after.rows[0];
+      if (!row || row.list_id !== listId || (row.parent_id ?? null) !== parentId) throw new HttpError(400, 'Элемент не найден');
+      pos = row.pos + 1;
+      await client.query(
+        `UPDATE items SET pos = pos + 1 WHERE list_id = $1 AND parent_id IS NOT DISTINCT FROM $2 AND pos > $3`,
+        [listId, parentId, row.pos],
+      );
+    } else {
+      const max = await client.query<{ pos: number }>(
+        `SELECT COALESCE(MAX(pos), -1) + 1 AS pos FROM items WHERE list_id = $1 AND parent_id IS NOT DISTINCT FROM $2`,
+        [listId, parentId],
+      );
+      pos = max.rows[0].pos;
+    }
     const id = crypto.randomUUID();
     await client.query(
       `INSERT INTO items (id, user_id, list_id, parent_id, kind, body, status, pos) VALUES ($1, $2, $3, $4, $5, $6, 'empty', $7)`,
-      [id, owner, listId, parentId, kind, text, max.rows[0].pos],
+      [id, owner, listId, parentId, kind, text, pos],
     );
     await touchList(client, listId);
     return id;
@@ -426,6 +458,7 @@ board.patch('/items/:id', wrap(async (req, res) => {
          WHERE id IN (SELECT id FROM tree) AND kind = 'task'`,
         [id, owner, status],
       );
+      await rollParent(client, row.parent_id, owner);
     }
     await touchList(client, row.list_id);
   });
@@ -436,9 +469,10 @@ board.delete('/items/:id', wrap(async (req, res) => {
   const owner = userId(req);
   const id = parseTitleSafeId(req.params.id);
   await tx(async (client) => {
-    const current = await client.query<{ list_id: string }>('SELECT list_id FROM items WHERE id = $1 AND user_id = $2', [id, owner]);
+    const current = await client.query<{ list_id: string; parent_id: string | null }>('SELECT list_id, parent_id FROM items WHERE id = $1 AND user_id = $2', [id, owner]);
     if (!current.rows[0]) throw new HttpError(400, 'Элемент не найден');
     await client.query('DELETE FROM items WHERE id = $1 AND user_id = $2', [id, owner]);
+    await rollParent(client, current.rows[0].parent_id, owner);
     await touchList(client, current.rows[0].list_id);
   });
   res.json(await readBoard(owner));

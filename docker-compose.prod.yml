@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
 
   app:
-    image: saphire:latest
+    image: sapphire:latest
     depends_on:
       - db
     env_file: .env

@@ -25,5 +25,5 @@ const port = Number(process.env.PORT || 4000);
 await waitForDb();
 await migrate();
 app.listen(port, '0.0.0.0', () => {
-  console.log(`Saphire API http://127.0.0.1:${port}`);
+  console.log(`Sapphire API http://127.0.0.1:${port}`);
 });

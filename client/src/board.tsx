@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError, AuthError } from './api';
-import { applyStatus, childrenOf, itemAfterRemoval, needsConfirm, nextStatus } from './model';
+import { alignParentStatus, applyStatus, childrenOf, itemAfterRemoval, needsConfirm, nextStatus } from './model';
 import type { Board, Editing, Group, ListItem, LogLine, MenuState, Session, SortBy, SortDir, TreeNode, User } from './types';
 
 type Theme = 'dark' | 'light';
@@ -36,7 +36,7 @@ type BoardApi = {
   setWarningHot: (value: boolean) => void;
   warn: (message: string) => void;
   fileWarning: () => void;
-  loginDev: () => Promise<void>;
+  loginPassword: (login: string, password: string, mode: 'login' | 'register') => Promise<void>;
   loginGoogle: () => void;
   logout: () => Promise<void>;
   setAccountOpen: (value: boolean) => void;
@@ -282,9 +282,12 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     pushLog(next === 'light' ? 'Включена светлая тема' : 'Включена тёмная тема');
   }
 
-  async function loginDev() {
+  async function loginPassword(login: string, password: string, mode: 'login' | 'register') {
     try {
-      await api('/api/auth/dev', { method: 'POST' });
+      await api(mode === 'register' ? '/api/auth/register' : '/api/auth/login', {
+        method: 'POST',
+        body: { login, password },
+      });
       const session = await api<Session>('/api/auth/session');
       setUser(session.user);
       const board = await getBoard();
@@ -430,7 +433,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     const item = itemsRef.current.find((entry) => entry.id === id);
     if (!item || item.kind !== 'task') return;
     const status = nextStatus(item.status);
-    const nextItems = applyStatus(itemsRef.current, id, status);
+    const nextItems = alignParentStatus(applyStatus(itemsRef.current, id, status));
     const nextNodes = nodesRef.current.map((node) => node.id === item.listId ? { ...node, updatedAt: new Date().toISOString() } : node);
     const label = status === 'done' ? 'выполнена' : status === 'failed' ? 'не выполнена' : 'снова пустая';
     commit(
@@ -466,20 +469,23 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   function createItem(kind: 'task' | 'comment' | 'subtask') {
     const listId = openListId;
     if (!listId) return;
+    const selected = itemsRef.current.find((item) => item.id === selectedItemId && item.listId === listId);
     let parentId: string | null = null;
+    let afterId: string | null = null;
+    if (kind === 'task' && selected?.kind === 'task') {
+      parentId = selected.parentId;
+      afterId = selected.id;
+    }
     if (kind === 'subtask') {
-      const selected = itemsRef.current.find((item) => item.id === selectedItemId);
-      if (!selected || selected.kind !== 'task' || selected.parentId || selected.listId !== listId) {
-        warn('Подзадача остаётся на одном уровне');
-        return;
-      }
-      parentId = selected.id;
+      if (!selected || selected.kind !== 'task') return;
+      parentId = selected.parentId ?? selected.id;
+      afterId = selected.parentId ? selected.id : null;
     }
     const text = kind === 'comment' ? 'Комментарий' : kind === 'subtask' ? 'Подзадача' : 'Новая задача';
     const apiKind = kind === 'comment' ? 'comment' : 'task';
     commit(
       () => {},
-      () => api<Board>('/api/items', { method: 'POST', body: { listId, parentId, kind: apiKind, body: text } }),
+      () => api<Board>('/api/items', { method: 'POST', body: { listId, parentId, afterId, kind: apiKind, body: text } }),
       kind === 'comment' ? 'Добавлен комментарий' : kind === 'subtask' ? 'Добавлена подзадача' : 'Добавлена задача',
       (board) => {
         if (!board.createdId) return;
@@ -559,7 +565,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-    const nextItems = itemsRef.current.filter((entry) => !ids.has(entry.id));
+    const nextItems = alignParentStatus(itemsRef.current.filter((entry) => !ids.has(entry.id)));
     const nextNodes = nodesRef.current.map((node) => node.id === item.listId ? { ...node, updatedAt: new Date().toISOString() } : node);
     if (selectedItemId && ids.has(selectedItemId)) {
       setSelectedItemId(itemAfterRemoval(itemsRef.current, item.listId, ids, selectedItemId));
@@ -700,7 +706,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     ready, user, googleEnabled, nodes, items, selectedNodeId, selectedItemId, openListId, editing, warning, log, search, sortBy, sortDir, completedFirst, theme, mobileView,
     menu, confirm, accountOpen, draggingWarning, warningHot,
     setSearch, setTheme, setMobileView, setDraggingWarning, setWarningHot, warn, fileWarning,
-    loginDev, loginGoogle, logout, setAccountOpen, clearNodeSelection, clearItemSelection, selectItem,
+    loginPassword, loginGoogle, logout, setAccountOpen, clearNodeSelection, clearItemSelection, selectItem,
     activateNode, selectNode, openNode, beginRenameNode, beginRenameItem, cycleTask, commitEdit, cancelEdit,
     createNode, createItem, copyNode, askRemove, removeItem, confirmDelete, cancelDelete,
     sortNodes, chooseSort, toggleCompletedFirst, moveNodes, moveItems, openSortMenu, openTreeMenu, openEditorMenu, closeMenu, snapshot,

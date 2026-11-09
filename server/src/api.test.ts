@@ -78,10 +78,16 @@ describe('база', { concurrency: 1 }, () => {
     assert.equal(res.status, 401);
   });
 
-  it('локальный вход создаёт пользователя и демо-доску', async () => {
-    const login = await call('/api/auth/dev', jar, { method: 'POST', body: {} });
+  it('регистрация создаёт пользователя и демо-доску', async () => {
+    const taken = await call('/api/auth/register', cookies(), { method: 'POST', body: { login: 'a', password: '12345' } });
+    assert.equal(taken.status, 400);
+    const login = await call('/api/auth/register', jar, { method: 'POST', body: { login: 'tester', password: 'secret1' } });
     assert.equal(login.status, 200);
-    assert.equal(login.body?.user?.name, 'Локальный сеанс');
+    assert.equal(login.body?.user?.name, 'tester');
+    const again = await call('/api/auth/register', cookies(), { method: 'POST', body: { login: 'tester', password: 'secret1' } });
+    assert.equal(again.status, 409);
+    const wrong = await call('/api/auth/login', cookies(), { method: 'POST', body: { login: 'tester', password: 'wrong12' } });
+    assert.equal(wrong.status, 401);
     const board = await call('/api/board', jar);
     assert.equal(board.status, 200);
     assert.ok(board.body?.nodes.some((node) => node.title === 'List 2'));

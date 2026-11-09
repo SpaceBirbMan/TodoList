@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { applyStatus, isListComplete, itemAfterRemoval, nextStatus, orderedSiblings, planNodeMove, searchView } from './model';
+import { alignParentStatus, applyStatus, isListComplete, itemAfterRemoval, nextStatus, orderedSiblings, planNodeMove, searchView, taskVisual } from './model';
 import type { ListItem, TreeNode } from './types';
 
 function node(partial: Partial<TreeNode> & Pick<TreeNode, 'id' | 'kind' | 'title'>): TreeNode {
@@ -39,6 +39,24 @@ describe('статусы', () => {
     ];
     const next = applyStatus(items, 'a', 'done');
     assert.deepEqual(next.map((item) => item.status), ['done', 'done', 'empty']);
+  });
+
+  it('одинаковые подзадачи задают отметку родителя, смешанные дают минус', () => {
+    const items = [
+      task({ id: 'a', body: 'A', status: 'empty' }),
+      task({ id: 'b', body: 'B', parentId: 'a', status: 'done' }),
+      task({ id: 'c', body: 'C', parentId: 'a', status: 'done' }),
+    ];
+    assert.equal(taskVisual(items[0], items), 'done');
+    const aligned = alignParentStatus(items);
+    assert.equal(aligned[0].status, 'done');
+    const mixed = [
+      task({ id: 'a', body: 'A', status: 'done' }),
+      task({ id: 'b', body: 'B', parentId: 'a', status: 'done' }),
+      task({ id: 'c', body: 'C', parentId: 'a', status: 'failed' }),
+    ];
+    assert.equal(taskVisual(mixed[0], mixed), 'mixed');
+    assert.equal(alignParentStatus(mixed)[0].status, 'done');
   });
 });
 

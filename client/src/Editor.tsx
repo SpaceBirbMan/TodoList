@@ -188,6 +188,7 @@ export function Editor() {
           </div>
           <div className="toolbar">
             <button type="button" aria-label="Добавить задачу" title="Добавить задачу" data-action="add-task" onClick={() => board.createItem('task')}><Icon name="add" /></button>
+            <button type="button" aria-label="Добавить подзадачу" title="Добавить подзадачу" data-action="add-subtask" disabled={!board.items.some((item) => item.id === board.selectedItemId && item.listId === list.id && item.kind === 'task')} onClick={() => board.createItem('subtask')}><Icon name="add" /></button>
             <button type="button" aria-label="Добавить комментарий" title="Добавить комментарий" data-action="add-comment" onClick={() => board.createItem('comment')}><Icon name="messageEdit" /></button>
             <button type="button" aria-label="Удалить" title="Удалить" data-action="delete-item" disabled={!selectedHere} onClick={() => board.selectedItemId && board.removeItem(board.selectedItemId)}><Icon name="trash" /></button>
           </div>
