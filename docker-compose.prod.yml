@@ -1,0 +1,28 @@
+name: saphire
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: saphire
+      POSTGRES_PASSWORD: saphire
+      POSTGRES_DB: saphire
+    volumes:
+      - saphire_pg:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  app:
+    image: saphire:latest
+    depends_on:
+      - db
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://saphire:saphire@db:5432/saphire
+      PORT: "8080"
+      CLIENT_DIST: /app/client/dist
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  saphire_pg:

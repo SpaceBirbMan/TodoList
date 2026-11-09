@@ -1,0 +1,16 @@
+name: saphire
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: saphire
+      POSTGRES_PASSWORD: saphire
+      POSTGRES_DB: saphire
+    ports:
+      - "5432:5432"
+    volumes:
+      - saphire_pg:/var/lib/postgresql/data
+
+volumes:
+  saphire_pg:
